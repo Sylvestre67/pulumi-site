@@ -1,0 +1,8 @@
+node_modules
+.git
+*
+!nginx/
+!src/
+!*.js
+!package.json
+!yarn.lock

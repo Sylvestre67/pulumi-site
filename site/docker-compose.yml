@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  web:
+    build: "."
+    image: "sylvestre67/pulimi"
+    container_name: "web-nginx"
+    restart: "unless-stopped"
+    ports:
+      - "8080:8080"
