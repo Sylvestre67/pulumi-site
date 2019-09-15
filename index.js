@@ -1,25 +1,41 @@
 "use strict"
 
 const aws = require("@pulumi/aws")
-const awsx = require("@pulumi/awsx")
 
 const fs = require("fs")
 const pulumi = require("@pulumi/pulumi")
 const mime = require("mime")
 
-// Create a KMS Key for S3 server-side encryption
-const key = new aws.kms.Key("pulumi-key")
-
 // Create an AWS resource (S3 Bucket)
 const siteBucket = new aws.s3.Bucket("pulumi-site", {
-  serverSideEncryptionConfiguration: {
-    rule: {
-      applyServerSideEncryptionByDefault: {
-        sseAlgorithm: "aws:kms",
-        kmsMasterKeyId: key.id,
-      },
-    },
+  website: {
+    indexDocument: "index.html",
   },
+})
+
+// Create an S3 Bucket Policy to allow public read of all objects in bucket
+// This reusable function can be pulled out into its own module
+function publicReadPolicyForBucket(bucketName) {
+  return JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: "*",
+        Action: ["s3:GetObject"],
+        Resource: [
+          `arn:aws:s3:::${bucketName}/*`, // policy refers to bucket name explicitly
+        ],
+      },
+    ],
+  })
+}
+
+// Set the access policy for the bucket so all objects are readable
+let bucketPolicy = new aws.s3.BucketPolicy("bucketPolicy", {
+  bucket: siteBucket.bucket, // depends on siteBucket -- see explanation below
+  policy: siteBucket.bucket.apply(publicReadPolicyForBucket),
+  // transform the siteBucket.bucket output property -- see explanation below
 })
 
 let siteDir = "./site/public" // directory for content files
@@ -59,5 +75,5 @@ crawlDirectory(siteDir, filePath => {
   )
 })
 
-// Export the name of the bucket
-exports.bucketName = siteBucket.id
+// output the endpoint as a stack output
+exports.websiteUrl = siteBucket.websiteEndpoint
